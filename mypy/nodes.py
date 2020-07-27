@@ -239,10 +239,7 @@ class MypyFile(SymbolNode):
         self.imports = imports
         self.is_bom = is_bom
         self.alias_deps = defaultdict(set)
-        if ignored_lines:
-            self.ignored_lines = ignored_lines
-        else:
-            self.ignored_lines = set()
+        self.ignored_lines = ignored_lines if ignored_lines else set()
 
     def name(self) -> str:
         return '' if not self._fullname else self._fullname.split('.')[-1]
@@ -254,8 +251,11 @@ class MypyFile(SymbolNode):
         return visitor.visit_mypy_file(self)
 
     def is_package_init_file(self) -> bool:
-        return not (self.path is None) and len(self.path) != 0 \
+        return (
+            self.path is not None
+            and len(self.path) != 0
             and os.path.basename(self.path).startswith('__init__.')
+        )
 
     def serialize(self) -> JsonDict:
         return {'.class': 'MypyFile',
@@ -1518,8 +1518,10 @@ ops_falling_back_to_cmp = {'__ne__', '__eq__',
 ops_with_inplace_method = {
     '+', '-', '*', '/', '%', '//', '**', '@', '&', '|', '^', '<<', '>>'}  # type: Final
 
-inplace_operator_methods = set(
-    '__i' + op_methods[op][2:] for op in ops_with_inplace_method)  # type: Final
+inplace_operator_methods = {
+    '__i' + op_methods[op][2:] for op in ops_with_inplace_method
+}
+
 
 reverse_op_methods = {
     '__add__': '__radd__',
@@ -1565,7 +1567,7 @@ op_methods_that_shortcut = {
     '__rshift__',
 }  # type: Final
 
-normal_from_reverse_op = dict((m, n) for n, m in reverse_op_methods.items())  # type: Final
+normal_from_reverse_op = {m: n for n, m in reverse_op_methods.items()}
 reverse_op_method_set = set(reverse_op_methods.values())  # type: Final
 
 unary_op_methods = {
@@ -2339,10 +2341,7 @@ class TypeInfo(SymbolNode):
 
         This can be either via extension or via implementation.
         """
-        for cls in self.mro:
-            if cls.fullname() == fullname:
-                return True
-        return False
+        return any(cls.fullname() == fullname for cls in self.mro)
 
     def direct_base_classes(self) -> 'List[TypeInfo]':
         """Return a direct base classes.
@@ -2908,7 +2907,7 @@ def check_arg_kinds(arg_kinds: List[int], nodes: List[T], fail: Callable[[str, T
                 fail("Var args may not appear after named or var args", node)
                 break
             is_var_arg = True
-        elif kind == ARG_NAMED or kind == ARG_NAMED_OPT:
+        elif kind in [ARG_NAMED, ARG_NAMED_OPT]:
             seen_named = True
             if is_kw_arg:
                 fail("A **kwargs argument must be the last argument", node)

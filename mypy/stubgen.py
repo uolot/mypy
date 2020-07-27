@@ -479,7 +479,6 @@ class StubGenerator(mypy.traverser.TraverserVisitor):
             else:
                 annotation = ""
             if arg_.initializer:
-                initializer = '...'
                 if kind in (ARG_NAMED, ARG_NAMED_OPT) and not any(arg.startswith('*')
                                                                   for arg in args):
                     args.append('*')
@@ -487,6 +486,7 @@ class StubGenerator(mypy.traverser.TraverserVisitor):
                     typename = self.get_str_type_of_node(arg_.initializer, True)
                     annotation = ': {} = ...'.format(typename)
                 else:
+                    initializer = '...'
                     annotation += '={}'.format(initializer)
                 arg = name + annotation
             elif kind == ARG_STAR:
@@ -706,10 +706,7 @@ class StubGenerator(mypy.traverser.TraverserVisitor):
     def visit_import(self, o: Import) -> None:
         for id, as_id in o.ids:
             self.import_tracker.add_import(id, as_id)
-            if as_id is None:
-                target_name = id.split('.')[0]
-            else:
-                target_name = as_id
+            target_name = id.split('.')[0] if as_id is None else as_id
             self._vars[-1].append(target_name)
             self.record_name(target_name)
 

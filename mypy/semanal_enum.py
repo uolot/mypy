@@ -142,7 +142,7 @@ class EnumCallAnalyzer:
                 "%s() expects a string, tuple, list or dict literal as the second argument" %
                 class_name,
                 call)
-        if len(items) == 0:
+        if not items:
             return self.fail_enum_call_arg("%s() needs at least one item" % class_name, call)
         if not values:
             values = [None] * len(items)

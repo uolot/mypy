@@ -475,18 +475,19 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
 
     def prepare_method_signature(self, func: FuncDef, info: TypeInfo) -> None:
         """Check basic signature validity and tweak annotation of self/cls argument."""
+        if func.is_static:
+            return
         # Only non-static methods are special.
         functype = func.type
-        if not func.is_static:
-            if not func.arguments:
-                self.fail('Method must have at least one argument', func)
-            elif isinstance(functype, CallableType):
-                self_type = functype.arg_types[0]
-                if isinstance(self_type, AnyType):
-                    leading_type = fill_typevars(info)  # type: Type
-                    if func.is_class or func.name() in ('__new__', '__init_subclass__'):
-                        leading_type = self.class_type(leading_type)
-                    func.type = replace_implicit_first_type(functype, leading_type)
+        if not func.arguments:
+            self.fail('Method must have at least one argument', func)
+        elif isinstance(functype, CallableType):
+            self_type = functype.arg_types[0]
+            if isinstance(self_type, AnyType):
+                leading_type = fill_typevars(info)  # type: Type
+                if func.is_class or func.name() in ('__new__', '__init_subclass__'):
+                    leading_type = self.class_type(leading_type)
+                func.type = replace_implicit_first_type(functype, leading_type)
 
     def set_original_def(self, previous: Optional[Node], new: FuncDef) -> bool:
         """If 'new' conditionally redefine 'previous', set 'previous' as original
@@ -533,8 +534,6 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         # overload, and we're outside a stub, find the impl and set it.  Remove
         # the impl from the item list, it's special.
         types = []  # type: List[CallableType]
-        non_overload_indexes = []
-
         # See if the first item is a property (and not an overload)
         first_item = defn.items[0]
         first_item.is_overload = True
@@ -549,6 +548,8 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
             assert isinstance(typ, CallableType)
             types = [typ]
         else:
+            non_overload_indexes = []
+
             for i, item in enumerate(defn.items):
                 if i != 0:
                     # The first item was already visited
@@ -600,7 +601,11 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
                 assert defn.impl is defn.items[-1]
                 defn.items = defn.items[:-1]
             elif not self.is_stub_file and not non_overload_indexes:
-                if not (self.type and not self.is_func_scope() and self.type.is_protocol):
+                if (
+                    not self.type
+                    or self.is_func_scope()
+                    or not self.type.is_protocol
+                ):
                     self.fail(
                         "An overloaded function outside a stub file must have an implementation",
                         defn)
@@ -686,12 +691,11 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         for item in items[1:]:
             if isinstance(item, Decorator) and len(item.decorators) == 1:
                 node = item.decorators[0]
-                if isinstance(node, MemberExpr):
-                    if node.name == 'setter':
-                        # The first item represents the entire property.
-                        first_item.var.is_settable_property = True
-                        # Get abstractness from the original definition.
-                        item.func.is_abstract = first_item.func.is_abstract
+                if isinstance(node, MemberExpr) and node.name == 'setter':
+                    # The first item represents the entire property.
+                    first_item.var.is_settable_property = True
+                    # Get abstractness from the original definition.
+                    item.func.is_abstract = first_item.func.is_abstract
             else:
                 self.fail("Decorated property not supported", item)
             if isinstance(item, Decorator):
@@ -1001,12 +1005,17 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
                 declared_tvars.extend(tvars)
             if isinstance(base, UnboundType):
                 sym = self.lookup_qualified(base.name, base)
-                if sym is not None and sym.node is not None:
-                    if (sym.node.fullname() in ('typing.Protocol',
-                                                'typing_extensions.Protocol') and
-                            i not in removed):
-                        # also remove bare 'Protocol' bases
-                        removed.append(i)
+                if (
+                    sym is not None
+                    and sym.node is not None
+                    and (
+                        sym.node.fullname()
+                        in ('typing.Protocol', 'typing_extensions.Protocol')
+                        and i not in removed
+                    )
+                ):
+                    # also remove bare 'Protocol' bases
+                    removed.append(i)
 
         all_tvars = self.get_all_bases_tvars(defn, removed)
         if declared_tvars:
@@ -1020,9 +1029,8 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
                 declared_tvars = remove_dups(declared_tvars + all_tvars)
         else:
             declared_tvars = all_tvars
-        if declared_tvars:
-            if defn.info:
-                defn.info.type_vars = [name for name, _ in declared_tvars]
+        if declared_tvars and defn.info:
+            defn.info.type_vars = [name for name, _ in declared_tvars]
         for i in reversed(removed):
             defn.removed_base_type_exprs.append(defn.base_type_exprs[i])
             del defn.base_type_exprs[i]
@@ -1765,10 +1773,13 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
             self.fail("Cannot use Final inside a loop", s)
         if self.type and self.type.is_protocol:
             self.msg.protocol_members_cant_be_final(s)
-        if (isinstance(s.rvalue, TempNode) and s.rvalue.no_rhs and
-                not self.is_stub_file and not self.is_class_scope()):
-            if not invalid_bare_final:  # Skip extra error messages.
-                self.msg.final_without_value(s)
+        if (
+            isinstance(s.rvalue, TempNode)
+            and s.rvalue.no_rhs
+            and not self.is_stub_file
+            and not self.is_class_scope()
+        ) and not invalid_bare_final:  # Skip extra error messages.
+            self.msg.final_without_value(s)
         return
 
     def check_final_implicit_def(self, s: AssignmentStmt) -> None:
@@ -1994,7 +2005,7 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
                 lval.accept(self)
         elif isinstance(lval, TupleExpr):
             items = lval.items
-            if len(items) == 0 and isinstance(lval, TupleExpr):
+            if len(items) == 0:
                 self.fail("can't assign to ()", lval)
             self.analyze_tuple_or_list_lvalue(lval, add_global, explicit_type)
         elif isinstance(lval, StarExpr):
@@ -2064,10 +2075,7 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         lvalue.is_new_def = True
         lvalue.is_inferred_def = True
         lvalue.kind = kind
-        if kind == GDEF:
-            lvalue.fullname = v._fullname
-        else:
-            lvalue.fullname = lvalue.name
+        lvalue.fullname = v._fullname if kind == GDEF else lvalue.name
         return v
 
     def make_name_lvalue_point_to_existing_def(
@@ -2079,10 +2087,7 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         global_def = self.globals.get(lval.name)
         if self.locals:
             locals_last = self.locals[-1]
-            if locals_last:
-                local_def = locals_last.get(lval.name)
-            else:
-                local_def = None
+            local_def = locals_last.get(lval.name) if locals_last else None
         else:
             local_def = None
         type_def = self.type.names.get(lval.name) if self.type else None
@@ -2271,8 +2276,10 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         if len(call.args) < 1:
             self.fail("Too few arguments for TypeVar()", context)
             return False
-        if (not isinstance(call.args[0], (StrExpr, BytesExpr, UnicodeExpr))
-                or not call.arg_kinds[0] == ARG_POS):
+        if (
+            not isinstance(call.args[0], (StrExpr, BytesExpr, UnicodeExpr))
+            or call.arg_kinds[0] != ARG_POS
+        ):
             self.fail("TypeVar() expects a string literal as first argument", context)
             return False
         elif call.args[0].value != name:
@@ -2307,26 +2314,24 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
         contravariant = False
         upper_bound = self.object_type()   # type: Type
         for param_value, param_name, param_kind in zip(args, names, kinds):
-            if not param_kind == ARG_NAMED:
+            if param_kind != ARG_NAMED:
                 self.fail("Unexpected argument to TypeVar()", context)
                 return None
             if param_name == 'covariant':
-                if isinstance(param_value, NameExpr):
-                    if param_value.name == 'True':
-                        covariant = True
-                    else:
-                        self.fail("TypeVar 'covariant' may only be 'True'", context)
-                        return None
+                if (
+                    isinstance(param_value, NameExpr)
+                    and param_value.name == 'True'
+                ):
+                    covariant = True
                 else:
                     self.fail("TypeVar 'covariant' may only be 'True'", context)
                     return None
             elif param_name == 'contravariant':
-                if isinstance(param_value, NameExpr):
-                    if param_value.name == 'True':
-                        contravariant = True
-                    else:
-                        self.fail("TypeVar 'contravariant' may only be 'True'", context)
-                        return None
+                if (
+                    isinstance(param_value, NameExpr)
+                    and param_value.name == 'True'
+                ):
+                    contravariant = True
                 else:
                     self.fail("TypeVar 'contravariant' may only be 'True'", context)
                     return None
@@ -2389,10 +2394,10 @@ class SemanticAnalyzerPass2(NodeVisitor[None],
 
     def parse_bool(self, expr: Expression) -> Optional[bool]:
         if isinstance(expr, NameExpr):
-            if expr.fullname == 'builtins.True':
-                return True
             if expr.fullname == 'builtins.False':
                 return False
+            elif expr.fullname == 'builtins.True':
+                return True
         return None
 
     def check_classvar(self, s: AssignmentStmt) -> None:

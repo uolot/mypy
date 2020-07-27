@@ -37,10 +37,7 @@ def simplify_union(t: Type) -> Type:
 def is_same_types(a1: Sequence[Type], a2: Sequence[Type]) -> bool:
     if len(a1) != len(a2):
         return False
-    for i in range(len(a1)):
-        if not is_same_type(a1[i], a2[i]):
-            return False
-    return True
+    return all(is_same_type(a1[i], a2[i]) for i in range(len(a1)))
 
 
 class SameTypeVisitor(TypeVisitor[bool]):
@@ -107,10 +104,11 @@ class SameTypeVisitor(TypeVisitor[bool]):
         if isinstance(self.right, TypedDictType):
             if left.items.keys() != self.right.items.keys():
                 return False
-            for (_, left_item_type, right_item_type) in left.zip(self.right):
-                if not is_same_type(left_item_type, right_item_type):
-                    return False
-            return True
+            return all(
+                is_same_type(left_item_type, right_item_type)
+                for (_, left_item_type, right_item_type) in left.zip(self.right)
+            )
+
         else:
             return False
 

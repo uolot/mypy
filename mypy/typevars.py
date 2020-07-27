@@ -12,8 +12,8 @@ def fill_typevars(typ: TypeInfo) -> Union[Instance, TupleType]:
     """
     tv = []  # type: List[Type]
     # TODO: why do we need to keep both typ.type_vars and typ.defn.type_vars?
-    for i in range(len(typ.defn.type_vars)):
-        tv.append(TypeVarType(typ.defn.type_vars[i]))
+    for type_var in typ.defn.type_vars:
+        tv.append(TypeVarType(type_var))
     inst = Instance(typ, tv)
     if typ.tuple_type is None:
         return inst

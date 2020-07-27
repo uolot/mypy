@@ -134,8 +134,8 @@ def update_testcase_output(testcase: DataDrivenTestCase, output: List[str]) -> N
     test = '\n'.join(data_lines[testcase.line:testcase.lastline])
 
     mapping = {}  # type: Dict[str, List[str]]
+    PREFIX = 'error:'
     for old, new in zip(testcase.output, output):
-        PREFIX = 'error:'
         ind = old.find(PREFIX)
         if ind != -1 and old[:ind] == new[:ind]:
             old, new = old[ind + len(PREFIX):], new[ind + len(PREFIX):]
@@ -219,7 +219,7 @@ def clean_up(a: List[str]) -> List[str]:
     for s in a:
         prefix = os.sep
         ss = s
-        for p in prefix, prefix.replace(os.sep, '/'):
+        for p in (prefix, prefix.replace(prefix, '/')):
             if p != '/' and p != '//' and p != '\\' and p != '\\\\':
                 ss = ss.replace(p, '')
         # Ignore spaces at end of line.
@@ -260,10 +260,7 @@ def testcase_pyversion(path: str, testcase_name: str) -> Tuple[int, int]:
 def normalize_error_messages(messages: List[str]) -> List[str]:
     """Translate an array of error messages to use / as path separator."""
 
-    a = []
-    for m in messages:
-        a.append(m.replace(os.sep, '/'))
-    return a
+    return [m.replace(os.sep, '/') for m in messages]
 
 
 def retry_on_error(func: Callable[[], Any], max_wait: float = 1.0) -> None:
@@ -302,14 +299,13 @@ def assert_false(b: bool, msg: Optional[str] = None) -> None:
 
 
 def good_repr(obj: object) -> str:
-    if isinstance(obj, str):
-        if obj.count('\n') > 1:
-            bits = ["'''\\"]
-            for line in obj.split('\n'):
-                # force repr to use ' not ", then cut it off
-                bits.append(repr('"' + line)[2:-1])
-            bits[-1] += "'''"
-            return '\n'.join(bits)
+    if isinstance(obj, str) and obj.count('\n') > 1:
+        bits = ["'''\\"]
+        for line in obj.split('\n'):
+            # force repr to use ' not ", then cut it off
+            bits.append(repr('"' + line)[2:-1])
+        bits[-1] += "'''"
+        return '\n'.join(bits)
     return repr(obj)
 
 

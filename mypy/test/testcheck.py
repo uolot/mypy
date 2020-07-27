@@ -114,7 +114,7 @@ class TypeCheckSuite(DataSuite):
         original_program_text = '\n'.join(testcase.input)
         module_data = self.parse_module(original_program_text, incremental_step)
 
-        if incremental_step == 0 or incremental_step == 1:
+        if incremental_step in [0, 1]:
             # In run 1, copy program text to program file.
             for module_name, program_path, program_text in module_data:
                 if module_name == '__main__':
@@ -224,7 +224,7 @@ class TypeCheckSuite(DataSuite):
         # really errors that cause an error to be marked, many are
         # just notes attached to other errors.
         assert error_paths or not busted_paths, "Some modules reported error despite no errors"
-        if not missing_paths == busted_paths:
+        if missing_paths != busted_paths:
             raise AssertionError("cache data discrepancy %s != %s" %
                                  (missing_paths, busted_paths))
 

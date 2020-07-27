@@ -354,15 +354,15 @@ class TypeMeetVisitor(TypeVisitor[Type]):
         self.s = s
 
     def visit_unbound_type(self, t: UnboundType) -> Type:
-        if isinstance(self.s, NoneTyp):
-            if experiments.STRICT_OPTIONAL:
-                return AnyType(TypeOfAny.special_form)
-            else:
-                return self.s
-        elif isinstance(self.s, UninhabitedType):
-            return self.s
-        else:
+        if (
+            isinstance(self.s, NoneTyp)
+            and experiments.STRICT_OPTIONAL
+            or not isinstance(self.s, NoneTyp)
+            and not isinstance(self.s, UninhabitedType)
+        ):
             return AnyType(TypeOfAny.special_form)
+        else:
+            return self.s
 
     def visit_any(self, t: AnyType) -> Type:
         return self.s
@@ -392,15 +392,15 @@ class TypeMeetVisitor(TypeVisitor[Type]):
         return t
 
     def visit_deleted_type(self, t: DeletedType) -> Type:
-        if isinstance(self.s, NoneTyp):
-            if experiments.STRICT_OPTIONAL:
-                return t
-            else:
-                return self.s
-        elif isinstance(self.s, UninhabitedType):
-            return self.s
-        else:
+        if (
+            isinstance(self.s, NoneTyp)
+            and experiments.STRICT_OPTIONAL
+            or not isinstance(self.s, NoneTyp)
+            and not isinstance(self.s, UninhabitedType)
+        ):
             return t
+        else:
+            return self.s
 
     def visit_erased_type(self, t: ErasedType) -> Type:
         return self.s
@@ -499,26 +499,25 @@ class TypeMeetVisitor(TypeVisitor[Type]):
         return self.default(self.s)
 
     def visit_typeddict_type(self, t: TypedDictType) -> Type:
-        if isinstance(self.s, TypedDictType):
-            for (name, l, r) in self.s.zip(t):
-                if (not is_equivalent(l, r) or
-                        (name in t.required_keys) != (name in self.s.required_keys)):
-                    return self.default(self.s)
-            item_list = []  # type: List[Tuple[str, Type]]
-            for (item_name, s_item_type, t_item_type) in self.s.zipall(t):
-                if s_item_type is not None:
-                    item_list.append((item_name, s_item_type))
-                else:
-                    # at least one of s_item_type and t_item_type is not None
-                    assert t_item_type is not None
-                    item_list.append((item_name, t_item_type))
-            items = OrderedDict(item_list)
-            mapping_value_type = join_type_list(list(items.values()))
-            fallback = self.s.create_anonymous_fallback(value_type=mapping_value_type)
-            required_keys = t.required_keys | self.s.required_keys
-            return TypedDictType(items, required_keys, fallback)
-        else:
+        if not isinstance(self.s, TypedDictType):
             return self.default(self.s)
+        for (name, l, r) in self.s.zip(t):
+            if (not is_equivalent(l, r) or
+                    (name in t.required_keys) != (name in self.s.required_keys)):
+                return self.default(self.s)
+        item_list = []  # type: List[Tuple[str, Type]]
+        for (item_name, s_item_type, t_item_type) in self.s.zipall(t):
+            if s_item_type is not None:
+                item_list.append((item_name, s_item_type))
+            else:
+                # at least one of s_item_type and t_item_type is not None
+                assert t_item_type is not None
+                item_list.append((item_name, t_item_type))
+        items = OrderedDict(item_list)
+        mapping_value_type = join_type_list(list(items.values()))
+        fallback = self.s.create_anonymous_fallback(value_type=mapping_value_type)
+        required_keys = t.required_keys | self.s.required_keys
+        return TypedDictType(items, required_keys, fallback)
 
     def visit_partial_type(self, t: PartialType) -> Type:
         # We can't determine the meet of partial types. We should never get here.

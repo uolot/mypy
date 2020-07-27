@@ -519,10 +519,7 @@ class DependencyVisitor(TraverserVisitor):
             self.add_attribute_dependency_for_expr(o.expr, '__iter__')
             self.add_attribute_dependency_for_expr(o.expr, '__getitem__')
             if o.inferred_iterator_type:
-                if self.python2:
-                    method = 'next'
-                else:
-                    method = '__next__'
+                method = 'next' if self.python2 else '__next__'
                 self.add_attribute_dependency(o.inferred_iterator_type, method)
         else:
             self.add_attribute_dependency_for_expr(o.expr, '__aiter__')

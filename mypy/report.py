@@ -373,10 +373,13 @@ class LineCoverageReporter(AbstractReporter):
         coverage_visitor = LineCoverageVisitor(tree_source)
         tree.accept(coverage_visitor)
 
-        covered_lines = []
-        for line_number, (_, typed) in enumerate(coverage_visitor.lines_covered):
-            if typed:
-                covered_lines.append(line_number + 1)
+        covered_lines = [
+            line_number + 1
+            for line_number, (_, typed) in enumerate(
+                coverage_visitor.lines_covered
+            )
+            if typed
+        ]
 
         self.lines_covered[os.path.abspath(tree.path)] = covered_lines
 
@@ -580,12 +583,12 @@ class CoberturaXmlReporter(AbstractReporter):
                 if status == stats.TYPE_IMPRECISE:
                     branch = True
                 file_info.counts[status] += 1
-                line_element = etree.SubElement(lines_element, 'line',
-                                                number=str(lineno),
-                                                precision=stats.precision_names[status],
-                                                hits=str(hits),
-                                                branch=str(branch).lower())
                 if branch:
+                    line_element = etree.SubElement(lines_element, 'line',
+                                                    number=str(lineno),
+                                                    precision=stats.precision_names[status],
+                                                    hits=str(hits),
+                                                    branch=str(branch).lower())
                     line_element.attrib['condition-coverage'] = '50% (1/2)'
             class_element.attrib['branch-rate'] = '0'
             class_element.attrib['line-rate'] = get_line_rate(class_lines_covered,

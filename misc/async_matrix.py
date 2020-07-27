@@ -99,10 +99,10 @@ def main():
             print("  ---- Func:", func.__name__)
             try:
                 f = host(func)
-                for i in range(10):
+                for _ in range(10):
                     try:
-                        x = f.send(None)
                         if verbose:
+                            x = f.send(None)
                             print("    yield:", x)
                     except StopIteration as e:
                         if verbose:

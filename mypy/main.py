@@ -243,10 +243,9 @@ def _python_executable_from_version(python_version: Tuple[int, int]) -> str:
         return sys.executable
     str_ver = '.'.join(map(str, python_version))
     try:
-        sys_exe = subprocess.check_output(python_executable_prefix(str_ver) +
+        return subprocess.check_output(python_executable_prefix(str_ver) +
                                           ['-c', 'import sys; print(sys.executable)'],
                                           stderr=subprocess.STDOUT).decode().strip()
-        return sys_exe
     except (subprocess.CalledProcessError, FileNotFoundError):
         raise PythonExecutableInferenceError(
             'failed to find a Python executable matching version {},'
@@ -274,13 +273,13 @@ def infer_python_version_and_executable(options: Options,
         else:
             options.python_version = special_opts.python_version
             options.python_executable = special_opts.python_executable
-    elif special_opts.python_executable is None and special_opts.python_version is not None:
+    elif special_opts.python_version is not None:
         options.python_version = special_opts.python_version
         py_exe = None
         if not special_opts.no_executable:
             py_exe = _python_executable_from_version(special_opts.python_version)
         options.python_executable = py_exe
-    elif special_opts.python_version is None and special_opts.python_executable is not None:
+    elif special_opts.python_executable is not None:
         options.python_version = _python_version_from_executable(
             special_opts.python_executable)
         options.python_executable = special_opts.python_executable
@@ -1039,9 +1038,8 @@ def parse_section(prefix: str, template: Options,
         if key == 'almost_silent':
             print("%s: almost_silent has been replaced by "
                   "follow_imports=error" % prefix, file=sys.stderr)
-            if v:
-                if 'follow_imports' not in results:
-                    results['follow_imports'] = 'error'
+            if v and 'follow_imports' not in results:
+                results['follow_imports'] = 'error'
         results[key] = v
     return results, report_dirs
 

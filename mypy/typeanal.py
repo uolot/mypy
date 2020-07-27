@@ -214,10 +214,7 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
                     not self.allow_unnormalized):
                 self.fail(no_subscript_builtin_alias(fullname,
                                                      propose_alt=not self.defining_alias), t)
-            if self.tvar_scope:
-                tvar_def = self.tvar_scope.get_binding(sym)
-            else:
-                tvar_def = None
+            tvar_def = self.tvar_scope.get_binding(sym) if self.tvar_scope else None
             if sym.kind == TVAR and tvar_def is not None and self.defining_alias:
                 self.fail('Can\'t use bound type variable "{}"'
                           ' to define generic alias'.format(t.name), t)
@@ -229,7 +226,7 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
                 return TypeVarType(tvar_def, t.line)
             elif fullname == 'builtins.None':
                 return NoneTyp()
-            elif fullname == 'typing.Any' or fullname == 'builtins.Any':
+            elif fullname in ['typing.Any', 'builtins.Any']:
                 return AnyType(TypeOfAny.explicit)
             elif fullname in ('typing.Final', 'typing_extensions.Final'):
                 self.fail("Final can be only used as an outermost qualifier"
@@ -567,7 +564,7 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
     @contextmanager
     def tvar_scope_frame(self) -> Iterator[None]:
         old_scope = self.tvar_scope
-        if self.tvar_scope:
+        if old_scope:
             self.tvar_scope = self.tvar_scope.method_frame()
         else:
             assert self.third_pass, "Internal error: type variable scope not given"
@@ -953,9 +950,7 @@ class TypeVariableQuery(TypeQuery[TypeVarList]):
     def _seems_like_callable(self, type: UnboundType) -> bool:
         if not type.args:
             return False
-        if isinstance(type.args[0], (EllipsisType, TypeList)):
-            return True
-        return False
+        return isinstance(type.args[0], (EllipsisType, TypeList))
 
     def visit_unbound_type(self, t: UnboundType) -> TypeVarList:
         name = t.name

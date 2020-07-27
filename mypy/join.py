@@ -159,9 +159,7 @@ class TypeJoinVisitor(TypeVisitor[Type]):
                 if call:
                     return join_types(call, self.s)
             return join_types(t, self.s.fallback)
-        elif isinstance(self.s, TypeType):
-            return join_types(t, self.s)
-        elif isinstance(self.s, TypedDictType):
+        elif isinstance(self.s, TypeType) or isinstance(self.s, TypedDictType):
             return join_types(t, self.s)
         else:
             return self.default(self.s)

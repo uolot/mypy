@@ -9,11 +9,7 @@ prog, *args = argv
 if version_info >= (3, 4, 0):
         python_name = executable
 else:
-    if platform == 'win32':
-        python_name = 'py -3'
-    else:
-        python_name = 'python3'
-
+        python_name = 'py -3' if platform == 'win32' else 'python3'
 # Slow test suites
 CMDLINE = 'PythonCmdline'
 SAMPLES = 'SamplesSuite'

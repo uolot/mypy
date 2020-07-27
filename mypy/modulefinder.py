@@ -276,7 +276,7 @@ def verify_module(fscache: FileSystemCache, id: str, path: str) -> bool:
     """Check that all packages containing id have a __init__ file."""
     if path.endswith(('__init__.py', '__init__.pyi')):
         path = os.path.dirname(path)
-    for i in range(id.count('.')):
+    for _ in range(id.count('.')):
         path = os.path.dirname(path)
         if not any(fscache.isfile_case(os.path.join(path, '__init__{}'.format(extension)))
                    for extension in PYTHON_EXTENSIONS):
@@ -420,10 +420,7 @@ def compute_search_paths(sources: List[BuildSource],
         # to the lib_path
         # TODO: Don't do this in some cases; for motivation see see
         # https://github.com/python/mypy/issues/4195#issuecomment-341915031
-        if options.bazel:
-            dir = '.'
-        else:
-            dir = os.getcwd()
+        dir = '.' if options.bazel else os.getcwd()
         if dir not in lib_path:
             python_path.insert(0, dir)
 

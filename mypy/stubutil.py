@@ -80,10 +80,12 @@ def find_unique_signatures(sigs: Sequence[Sig]) -> List[Sig]:
     sig_map = {}  # type: MutableMapping[str, List[str]]
     for name, sig in sigs:
         sig_map.setdefault(name, []).append(sig)
-    result = []
-    for name, name_sigs in sig_map.items():
-        if len(set(name_sigs)) == 1:
-            result.append((name, name_sigs[0]))
+    result = [
+        (name, name_sigs[0])
+        for name, name_sigs in sig_map.items()
+        if len(set(name_sigs)) == 1
+    ]
+
     return sorted(result)
 
 

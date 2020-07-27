@@ -899,7 +899,7 @@ class CallableType(FunctionLike):
             # No more positional arguments after these.
             if kind in (ARG_STAR, ARG_STAR2, ARG_NAMED, ARG_NAMED_OPT):
                 seen_star = True
-            if kind == ARG_STAR or kind == ARG_STAR2:
+            if kind in [ARG_STAR, ARG_STAR2]:
                 continue
             if arg_name == name:
                 position = None if seen_star else i
@@ -1662,9 +1662,7 @@ class TypeStrVisitor(SyntheticTypeVisitor[str]):
         return 'def {}'.format(s)
 
     def visit_overloaded(self, t: Overloaded) -> str:
-        a = []
-        for i in t.items():
-            a.append(i.accept(self))
+        a = [i.accept(self) for i in t.items()]
         return 'Overload({})'.format(', '.join(a))
 
     def visit_tuple_type(self, t: TupleType) -> str:
@@ -1848,10 +1846,9 @@ def get_typ_args(tp: Type) -> List[Type]:
     """Get all type arguments from a parametrizable Type."""
     if not isinstance(tp, (Instance, UnionType, TupleType, CallableType)):
         return []
-    typ_args = (tp.args if isinstance(tp, Instance) else
+    return (tp.args if isinstance(tp, Instance) else
                 tp.items if not isinstance(tp, CallableType) else
                 tp.arg_types + [tp.ret_type])
-    return typ_args
 
 
 def set_typ_args(tp: Type, new_args: List[Type], line: int = -1, column: int = -1) -> Type:

@@ -309,10 +309,7 @@ class Server:
                                       fscache=self.fscache)
         except mypy.errors.CompileError as e:
             output = ''.join(s + '\n' for s in e.messages)
-            if e.use_stdout:
-                out, err = output, ''
-            else:
-                out, err = '', output
+            out, err = (output, '') if e.use_stdout else ('', output)
             return {'out': out, 'err': err, 'status': 2}
         messages = result.errors
         self.fine_grained_manager = FineGrainedBuildManager(result)

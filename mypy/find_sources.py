@@ -110,11 +110,7 @@ class SourceFinder:
         dir, mod = os.path.split(arg)
         mod = strip_py(mod) or mod
         base, base_dir = self.crawl_up_dir(dir)
-        if mod == '__init__' or not mod:
-            mod = base
-        else:
-            mod = module_join(base, mod)
-
+        mod = base if mod == '__init__' or not mod else module_join(base, mod)
         return mod, base_dir
 
     def crawl_up_dir(self, dir: str) -> Tuple[str, str]:

@@ -391,10 +391,8 @@ class Errors:
         """Return a set of all targets that contain errors."""
         # TODO: Make sure that either target is always defined or that not being defined
         #       is okay for fine-grained incremental checking.
-        return set(info.target
-                   for errs in self.error_info_map.values()
-                   for info in errs
-                   if info.target)
+        return {info.target for errs in self.error_info_map.values() for info in errs
+                       if info.target}
 
     def render_messages(self, errors: List[ErrorInfo]) -> List[Tuple[Optional[str], int, int,
                                                                      str, str]]:
@@ -573,10 +571,7 @@ def report_internal_error(err: Exception, file: Optional[str], line: int,
 
     # Compute file:line prefix for official-looking error messages.
     if file:
-        if line:
-            prefix = '{}:{}: '.format(file, line)
-        else:
-            prefix = '{}: '.format(file)
+        prefix = '{}:{}: '.format(file, line) if line else '{}: '.format(file)
     else:
         prefix = ''
 

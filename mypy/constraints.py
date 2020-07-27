@@ -224,10 +224,7 @@ def is_same_constraints(x: List[Constraint], y: List[Constraint]) -> bool:
     for c1 in x:
         if not any(is_same_constraint(c1, c2) for c2 in y):
             return False
-    for c1 in y:
-        if not any(is_same_constraint(c1, c2) for c2 in x):
-            return False
-    return True
+    return all(any(is_same_constraint(c1, c2) for c2 in x) for c1 in y)
 
 
 def is_same_constraint(c1: Constraint, c2: Constraint) -> bool:

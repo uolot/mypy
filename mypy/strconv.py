@@ -202,10 +202,7 @@ class StrConv(NodeVisitor[str]):
 
     def visit_assignment_stmt(self, o: 'mypy.nodes.AssignmentStmt') -> str:
         a = []  # type: List[Any]
-        if len(o.lvalues) > 1:
-            a = [('Lvalues', o.lvalues)]
-        else:
-            a = [o.lvalues[0]]
+        a = [('Lvalues', o.lvalues)] if len(o.lvalues) > 1 else [o.lvalues[0]]
         a.append(o.rvalue)
         if o.type:
             a.append(o.type)
@@ -353,10 +350,7 @@ class StrConv(NodeVisitor[str]):
         n = name
         if is_inferred_def:
             n += '*'
-        if target_node:
-            id = self.format_id(target_node)
-        else:
-            id = ''
+        id = self.format_id(target_node) if target_node else ''
         if kind == mypy.nodes.GDEF or (fullname != name and
                                        fullname is not None):
             # Append fully qualified name for global references.

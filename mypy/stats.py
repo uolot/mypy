@@ -124,14 +124,14 @@ class StatisticsVisitor(TraverserVisitor):
         elif self.inferred and not self.all_nodes:
             # if self.all_nodes is set, lvalues will be visited later
             for lvalue in o.lvalues:
-                if isinstance(lvalue, nodes.TupleExpr):
-                    items = lvalue.items
-                else:
-                    items = [lvalue]
+                items = lvalue.items if isinstance(lvalue, nodes.TupleExpr) else [lvalue]
                 for item in items:
-                    if isinstance(item, RefExpr) and item.is_inferred_def:
-                        if self.typemap is not None:
-                            self.type(self.typemap.get(item))
+                    if (
+                        isinstance(item, RefExpr)
+                        and item.is_inferred_def
+                        and self.typemap is not None
+                    ):
+                        self.type(self.typemap.get(item))
         super().visit_assignment_stmt(o)
 
     def visit_name_expr(self, o: NameExpr) -> None:
@@ -172,10 +172,9 @@ class StatisticsVisitor(TraverserVisitor):
         super().visit_unary_expr(o)
 
     def process_node(self, node: Expression) -> None:
-        if self.all_nodes:
-            if self.typemap is not None:
-                self.line = node.line
-                self.type(self.typemap.get(node))
+        if self.all_nodes and self.typemap is not None:
+            self.line = node.line
+            self.type(self.typemap.get(node))
 
     def type(self, t: Optional[Type]) -> None:
         if not t:

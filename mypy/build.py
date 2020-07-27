@@ -1779,11 +1779,12 @@ class State:
         for dep in sorted(extra):
             if dep not in self.manager.modules:
                 continue
-            if dep not in self.suppressed and dep not in self.manager.missing_modules:
-                self.dependencies.append(dep)
-                self.priorities[dep] = PRI_INDIRECT
-            elif dep not in self.suppressed and dep in self.manager.missing_modules:
-                self.suppressed.append(dep)
+            if dep not in self.suppressed:
+                if dep not in self.manager.missing_modules:
+                    self.dependencies.append(dep)
+                    self.priorities[dep] = PRI_INDIRECT
+                else:
+                    self.suppressed.append(dep)
 
     def compute_fine_grained_deps(self) -> None:
         assert self.tree is not None
@@ -1955,7 +1956,7 @@ def find_module_and_diagnose(manager: BuildManager,
         elif follow_imports == 'silent':
             # Still import it, but silence non-blocker errors.
             manager.log("Silencing %s (%s)" % (path, id))
-        elif follow_imports == 'skip' or follow_imports == 'error':
+        elif follow_imports in ['skip', 'error']:
             # In 'error' mode, produce special error messages.
             if id not in manager.missing_modules:
                 manager.log("Skipping %s (%s)" % (path, id))
@@ -2401,15 +2402,9 @@ def process_graph(graph: Graph, manager: BuildManager) -> None:
                 all_ids = sorted(ascc | viable, key=lambda id: graph[id].xmeta.data_mtime)
                 for id in all_ids:
                     if id in scc:
-                        if graph[id].xmeta.data_mtime < newest_in_deps:
-                            key = "*id:"
-                        else:
-                            key = "id:"
+                        key = "*id:" if graph[id].xmeta.data_mtime < newest_in_deps else "id:"
                     else:
-                        if graph[id].xmeta.data_mtime > oldest_in_scc:
-                            key = "+dep:"
-                        else:
-                            key = "dep:"
+                        key = "+dep:" if graph[id].xmeta.data_mtime > oldest_in_scc else "dep:"
                     manager.trace(" %5s %.0f %s" % (key, graph[id].xmeta.data_mtime, id))
             # If equal, give the benefit of the doubt, due to 1-sec time granularity
             # (on some platforms).
@@ -2442,7 +2437,7 @@ def process_graph(graph: Graph, manager: BuildManager) -> None:
             manager.trace("Queuing %s SCC (%s)" % (fresh_msg, scc_str))
             fresh_scc_queue.append(scc)
         else:
-            if len(fresh_scc_queue) > 0:
+            if fresh_scc_queue:
                 manager.log("Processing {} queued fresh SCCs".format(len(fresh_scc_queue)))
                 # Defer processing fresh SCCs until we actually run into a stale SCC
                 # and need the earlier modules to be loaded.
@@ -2592,10 +2587,7 @@ def process_stale_scc(graph: Graph, scc: List[str], manager: BuildManager) -> No
         graph[id].type_check_first_pass()
     more = True
     while more:
-        more = False
-        for id in stale:
-            if graph[id].type_check_second_pass():
-                more = True
+        more = any(graph[id].type_check_second_pass() for id in stale)
     for id in stale:
         graph[id].generate_unused_ignore_notes()
     if any(manager.errors.is_errors_for_file(graph[id].xpath) for id in stale):
@@ -2688,8 +2680,7 @@ def strongly_connected_components(vertices: AbstractSet[str],
         for w in edges[v]:
             if w not in index:
                 # For Python >= 3.3, replace with "yield from dfs(w)"
-                for scc in dfs(w):
-                    yield scc
+                yield from dfs(w)
             elif w not in identified:
                 while index[w] < boundaries[-1]:
                     boundaries.pop()

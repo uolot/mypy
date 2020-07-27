@@ -218,11 +218,7 @@ def replace_object_state(new: object, old: object, copy_dict: bool=False) -> Non
     Assume that both objects have the same __class__.
     """
     if hasattr(old, '__dict__'):
-        if copy_dict:
-            new.__dict__ = dict(old.__dict__)
-        else:
-            new.__dict__ = old.__dict__
-
+        new.__dict__ = dict(old.__dict__) if copy_dict else old.__dict__
     for attr in get_class_descriptors(old.__class__):
         try:
             if hasattr(old, attr):

@@ -49,10 +49,7 @@ def collect_memory_stats() -> Tuple[Dict[str, int],
     freqs = {}  # type: Dict[str, int]
     memuse = {}  # type: Dict[str, int]
     for obj in objs:
-        if id(obj) in inferred:
-            name = inferred[id(obj)]
-        else:
-            name = type(obj).__name__
+        name = inferred.get(id(obj), type(obj).__name__)
         freqs[name] = freqs.get(name, 0) + 1
         memuse[name] = memuse.get(name, 0) + sys.getsizeof(obj)
 

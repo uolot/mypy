@@ -390,10 +390,7 @@ class MessageBuilder:
         be quoted; callers who need to do post-processing of the strings before
         quoting them (such as prepending * or **) should use this.
         """
-        if bare:
-            format_method = self.format_bare
-        else:
-            format_method = self.format
+        format_method = self.format_bare if bare else self.format
         verbosity = 0
         for verbosity in range(3):
             str1 = format_method(type1, verbosity=verbosity)
@@ -508,11 +505,7 @@ class MessageBuilder:
         Types can be Type objects or strings.
         """
         left_str = ''
-        if isinstance(left_type, str):
-            left_str = left_type
-        else:
-            left_str = self.format(left_type)
-
+        left_str = left_type if isinstance(left_type, str) else self.format(left_type)
         right_str = ''
         if isinstance(right_type, str):
             right_str = right_type
@@ -688,8 +681,11 @@ class MessageBuilder:
 
     def too_few_arguments(self, callee: CallableType, context: Context,
                           argument_names: Optional[Sequence[Optional[str]]]) -> None:
-        if (argument_names is not None and not all(k is None for k in argument_names)
-                and len(argument_names) >= 1):
+        if (
+            argument_names is not None
+            and any(k is not None for k in argument_names)
+            and len(argument_names) >= 1
+        ):
             diff = [k for k in callee.arg_names if k not in argument_names]
             if len(diff) == 1:
                 msg = 'Missing positional argument'
@@ -747,10 +743,7 @@ class MessageBuilder:
 
     def deleted_as_rvalue(self, typ: DeletedType, context: Context) -> None:
         """Report an error about using an deleted type as an rvalue."""
-        if typ.source is None:
-            s = ""
-        else:
-            s = " '{}'".format(typ.source)
+        s = "" if typ.source is None else " '{}'".format(typ.source)
         self.fail('Trying to read deleted variable{}'.format(s), context)
 
     def deleted_as_lvalue(self, typ: DeletedType, context: Context) -> None:
@@ -759,10 +752,7 @@ class MessageBuilder:
         Currently, this only occurs when trying to assign to an
         exception variable outside the local except: blocks.
         """
-        if typ.source is None:
-            s = ""
-        else:
-            s = " '{}'".format(typ.source)
+        s = "" if typ.source is None else " '{}'".format(typ.source)
         self.fail('Assignment to variable{} outside except: block'.format(s), context)
 
     def no_variant_matches_arguments(self,
@@ -771,10 +761,7 @@ class MessageBuilder:
                                      arg_types: List[Type],
                                      context: Context) -> None:
         name = callable_name(overload)
-        if name:
-            name_str = ' of {}'.format(name)
-        else:
-            name_str = ''
+        name_str = ' of {}'.format(name) if name else ''
         arg_types_str = ', '.join(self.format(arg) for arg in arg_types)
         num_args = len(arg_types)
         if num_args == 0:
@@ -1471,14 +1458,20 @@ def get_bad_protocol_flags(left: Instance, right: Instance
                     get_member_flags(member, left.type),
                     get_member_flags(member, right.type))
             all_flags.append(item)
-    bad_flags = []
-    for name, subflags, superflags in all_flags:
-        if (IS_CLASSVAR in subflags and IS_CLASSVAR not in superflags or
-                IS_CLASSVAR in superflags and IS_CLASSVAR not in subflags or
-                IS_SETTABLE in superflags and IS_SETTABLE not in subflags or
-                IS_CLASS_OR_STATIC in superflags and IS_CLASS_OR_STATIC not in subflags):
-            bad_flags.append((name, subflags, superflags))
-    return bad_flags
+    return [
+        (name, subflags, superflags)
+        for name, subflags, superflags in all_flags
+        if (
+            IS_CLASSVAR in subflags
+            and IS_CLASSVAR not in superflags
+            or IS_CLASSVAR in superflags
+            and IS_CLASSVAR not in subflags
+            or IS_SETTABLE in superflags
+            and IS_SETTABLE not in subflags
+            or IS_CLASS_OR_STATIC in superflags
+            and IS_CLASS_OR_STATIC not in subflags
+        )
+    ]
 
 
 def capitalize(s: str) -> str:
@@ -1494,8 +1487,7 @@ def extract_type(name: str) -> str:
     the type portion in quotes (e.g. "y"). Otherwise, return the string
     unmodified.
     """
-    name = re.sub('^"[a-zA-Z0-9_]+" of ', '', name)
-    return name
+    return re.sub('^"[a-zA-Z0-9_]+" of ', '', name)
 
 
 def strip_quotes(s: str) -> str:
@@ -1646,7 +1638,7 @@ def make_inferred_type_note(context: Context, subtype: Type,
 def format_key_list(keys: List[str], *, short: bool = False) -> str:
     reprs = [repr(key) for key in keys]
     td = '' if short else 'TypedDict '
-    if len(keys) == 0:
+    if not keys:
         return 'no {}keys'.format(td)
     elif len(keys) == 1:
         return '{}key {}'.format(td, reprs[0])

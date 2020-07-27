@@ -61,7 +61,7 @@ def get_edge_candidates(o: object) -> Iterator[Tuple[object, object]]:
         for attr in dir(o):
             if attr not in ATTR_BLACKLIST and hasattr(o, attr) and not isproperty(o, attr):
                 e = getattr(o, attr)
-                if not type(e) in ATOMIC_TYPE_BLACKLIST:
+                if type(e) not in ATOMIC_TYPE_BLACKLIST:
                     yield attr, e
     if isinstance(o, Mapping):
         for k, v in o.items():
@@ -84,7 +84,7 @@ def get_edges(o: object) -> Iterator[Tuple[object, object]]:
                 if se is not o and se is not type(o):
                     yield (s, '__self__'), se
         else:
-            if not type(e) in TYPE_BLACKLIST:
+            if type(e) not in TYPE_BLACKLIST:
                 yield s, e
 
 

@@ -398,9 +398,8 @@ def parse_test_data(raw_data: str, name: str) -> List[TestItem]:
     id = None  # type: Optional[str]
     arg = None  # type: Optional[str]
 
-    i = 0
     i0 = 0
-    while i < len(lines):
+    for i in range(len(lines)):
         s = lines[i].strip()
 
         if lines[i].startswith('[') and s.endswith(']') and not s.startswith('[['):
@@ -422,8 +421,6 @@ def parse_test_data(raw_data: str, name: str) -> List[TestItem]:
             data.append(lines[i])
         elif lines[i].startswith('----'):
             data.append(lines[i][2:])
-        i += 1
-
     # Process the last item.
     if id:
         data = collapse_line_continuation(data)
@@ -621,10 +618,10 @@ def is_incremental(testcase: DataDrivenTestCase) -> bool:
 def has_stable_flags(testcase: DataDrivenTestCase) -> bool:
     if any(re.match(r'# flags[2-9]:', line) for line in testcase.input):
         return False
-    for filename, contents in testcase.files:
-        if os.path.basename(filename).startswith('mypy.ini.'):
-            return False
-    return True
+    return not any(
+        os.path.basename(filename).startswith('mypy.ini.')
+        for filename, contents in testcase.files
+    )
 
 
 class DataSuite:

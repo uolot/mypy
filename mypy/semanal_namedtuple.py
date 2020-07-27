@@ -156,10 +156,7 @@ class NamedTupleAnalyzer:
         items, types, defaults, ok = self.parse_namedtuple_args(call, fullname)
         if not ok:
             # Error. Construct dummy return value.
-            if var_name:
-                name = var_name
-            else:
-                name = 'namedtuple@' + str(call.line)
+            name = var_name if var_name else 'namedtuple@' + str(call.line)
             info = self.build_namedtuple_typeinfo(name, [], [], {})
             self.store_namedtuple_info(info, name, call, is_typed)
             return info

@@ -458,27 +458,28 @@ def typed_dict_get_signature_callback(ctx: MethodSigContext) -> CallableType:
 
 def typed_dict_get_callback(ctx: MethodContext) -> Type:
     """Infer a precise return type for TypedDict.get with literal first argument."""
-    if (isinstance(ctx.type, TypedDictType)
-            and len(ctx.arg_types) >= 1
-            and len(ctx.arg_types[0]) == 1):
-        if isinstance(ctx.args[0][0], StrExpr):
-            key = ctx.args[0][0].value
-            value_type = ctx.type.items.get(key)
-            if value_type:
-                if len(ctx.arg_types) == 1:
-                    return UnionType.make_simplified_union([value_type, NoneTyp()])
-                elif (len(ctx.arg_types) == 2 and len(ctx.arg_types[1]) == 1
-                      and len(ctx.args[1]) == 1):
-                    default_arg = ctx.args[1][0]
-                    if (isinstance(default_arg, DictExpr) and len(default_arg.items) == 0
-                            and isinstance(value_type, TypedDictType)):
-                        # Special case '{}' as the default for a typed dict type.
-                        return value_type.copy_modified(required_keys=set())
-                    else:
-                        return UnionType.make_simplified_union([value_type, ctx.arg_types[1][0]])
-            else:
-                ctx.api.msg.typeddict_key_not_found(ctx.type, key, ctx.context)
-                return AnyType(TypeOfAny.from_error)
+    if (
+        isinstance(ctx.type, TypedDictType)
+        and len(ctx.arg_types) >= 1
+        and len(ctx.arg_types[0]) == 1
+    ) and isinstance(ctx.args[0][0], StrExpr):
+        key = ctx.args[0][0].value
+        value_type = ctx.type.items.get(key)
+        if value_type:
+            if len(ctx.arg_types) == 1:
+                return UnionType.make_simplified_union([value_type, NoneTyp()])
+            elif (len(ctx.arg_types) == 2 and len(ctx.arg_types[1]) == 1
+                  and len(ctx.args[1]) == 1):
+                default_arg = ctx.args[1][0]
+                if (isinstance(default_arg, DictExpr) and len(default_arg.items) == 0
+                        and isinstance(value_type, TypedDictType)):
+                    # Special case '{}' as the default for a typed dict type.
+                    return value_type.copy_modified(required_keys=set())
+                else:
+                    return UnionType.make_simplified_union([value_type, ctx.arg_types[1][0]])
+        else:
+            ctx.api.msg.typeddict_key_not_found(ctx.type, key, ctx.context)
+            return AnyType(TypeOfAny.from_error)
     return ctx.default_return_type
 
 

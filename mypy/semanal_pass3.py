@@ -174,10 +174,14 @@ class SemanticAnalyzerPass3(TraverserVisitor, SemanticAnalyzerCoreInterface):
                 types.append(tdef.info.tuple_type)
             self.analyze_types(types, tdef.info)
             for type in tdef.info.bases:
-                if tdef.info.is_protocol:
-                    if not isinstance(type, Instance) or not type.type.is_protocol:
-                        if type.type.fullname() != 'builtins.object':
-                            self.fail('All bases of a protocol must be protocols', tdef)
+                if (
+                    tdef.info.is_protocol
+                    and (
+                        not isinstance(type, Instance) or not type.type.is_protocol
+                    )
+                    and type.type.fullname() != 'builtins.object'
+                ):
+                    self.fail('All bases of a protocol must be protocols', tdef)
         # Recompute MRO now that we have analyzed all modules, to pick
         # up superclasses of bases imported from other modules in an
         # import loop. (Only do so if we succeeded the first time.)
@@ -230,9 +234,13 @@ class SemanticAnalyzerPass3(TraverserVisitor, SemanticAnalyzerCoreInterface):
         decorator_preserves_type = True
         for expr in dec.decorators:
             preserve_type = False
-            if isinstance(expr, RefExpr) and isinstance(expr.node, FuncDef):
-                if expr.node.type and is_identity_signature(expr.node.type):
-                    preserve_type = True
+            if (
+                isinstance(expr, RefExpr)
+                and isinstance(expr.node, FuncDef)
+                and expr.node.type
+                and is_identity_signature(expr.node.type)
+            ):
+                preserve_type = True
             if not preserve_type:
                 decorator_preserves_type = False
                 break
@@ -412,10 +420,10 @@ class SemanticAnalyzerPass3(TraverserVisitor, SemanticAnalyzerCoreInterface):
 
     def analyze(self, type: Optional[Type], node: Node,
                 warn: bool = False) -> None:
-        # Recursive type warnings are only emitted on type definition 'node's, marked by 'warn'
-        # Flags appeared during analysis of 'type' are collected in this dict.
-        indicator = {}  # type: Dict[str, bool]
         if type:
+            # Recursive type warnings are only emitted on type definition 'node's, marked by 'warn'
+            # Flags appeared during analysis of 'type' are collected in this dict.
+            indicator = {}  # type: Dict[str, bool]
             analyzer = self.make_type_analyzer(indicator)
             type.accept(analyzer)
             if not (isinstance(node, TypeAlias) and node.no_args):
@@ -531,9 +539,13 @@ class SemanticAnalyzerPass3(TraverserVisitor, SemanticAnalyzerCoreInterface):
 
 def is_identity_signature(sig: Type) -> bool:
     """Is type a callable of form T -> T (where T is a type variable)?"""
-    if isinstance(sig, CallableType) and sig.arg_kinds == [ARG_POS]:
-        if isinstance(sig.arg_types[0], TypeVarType) and isinstance(sig.ret_type, TypeVarType):
-            return sig.arg_types[0].id == sig.ret_type.id
+    if (
+        isinstance(sig, CallableType)
+        and sig.arg_kinds == [ARG_POS]
+        and isinstance(sig.arg_types[0], TypeVarType)
+        and isinstance(sig.ret_type, TypeVarType)
+    ):
+        return sig.arg_types[0].id == sig.ret_type.id
     return False
 
 
@@ -565,15 +577,17 @@ def find_fixed_callable_return(expr: Expression) -> Optional[CallableType]:
     if isinstance(expr, RefExpr):
         if isinstance(expr.node, FuncDef):
             typ = expr.node.type
-            if typ:
-                if isinstance(typ, CallableType) and has_no_typevars(typ.ret_type):
-                    if isinstance(typ.ret_type, CallableType):
-                        return typ.ret_type
+            if (
+                typ
+                and isinstance(typ, CallableType)
+                and has_no_typevars(typ.ret_type)
+                and isinstance(typ.ret_type, CallableType)
+            ):
+                return typ.ret_type
     elif isinstance(expr, CallExpr):
         t = find_fixed_callable_return(expr.callee)
-        if t:
-            if isinstance(t.ret_type, CallableType):
-                return t.ret_type
+        if t and isinstance(t.ret_type, CallableType):
+            return t.ret_type
     return None
 
 

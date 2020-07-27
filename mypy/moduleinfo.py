@@ -568,7 +568,7 @@ def is_py3_std_lib_module(id: str) -> bool:
 
 def is_in_module_collection(collection: Set[str], id: str) -> bool:
     components = id.split('.')
-    for prefix_length in range(1, len(components) + 1):
-        if '.'.join(components[:prefix_length]) in collection:
-            return True
-    return False
+    return any(
+        '.'.join(components[:prefix_length]) in collection
+        for prefix_length in range(1, len(components) + 1)
+    )

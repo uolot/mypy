@@ -66,10 +66,12 @@ def generate_stub_for_c_module(module_name: str,
 
 
 def add_typing_import(output: List[str]) -> List[str]:
-    names = []
-    for name in ['Any']:
-        if any(re.search(r'\b%s\b' % name, line) for line in output):
-            names.append(name)
+    names = [
+        name
+        for name in ['Any']
+        if any(re.search(r'\b%s\b' % name, line) for line in output)
+    ]
+
     if names:
         return ['from typing import %s' % ', '.join(names), ''] + output
     else:
@@ -104,10 +106,7 @@ def generate_c_function_stub(module: ModuleType,
                              class_name: Optional[str] = None,
                              class_sigs: Dict[str, str] = {},
                              ) -> None:
-    if self_var:
-        self_arg = '%s, ' % self_var
-    else:
-        self_arg = ''
+    self_arg = '%s, ' % self_var if self_var else ''
     if (name in ('__new__', '__init__') and name not in sigs and class_name and
             class_name in class_sigs):
         sig = class_sigs[class_name]
@@ -219,15 +218,15 @@ def infer_method_sig(name: str) -> str:
             return '()'
         if name == 'getitem':
             return '(index)'
-        if name == 'setitem':
+        elif name == 'setitem':
             return '(index, object)'
         if name in ('delattr', 'getattr'):
             return '(name)'
-        if name == 'setattr':
-            return '(name, value)'
         if name == 'getstate':
             return '()'
-        if name == 'setstate':
+        elif name == 'setattr':
+            return '(name, value)'
+        elif name == 'setstate':
             return '(state)'
         if name in ('eq', 'ne', 'lt', 'le', 'gt', 'ge',
                     'add', 'radd', 'sub', 'rsub', 'mul', 'rmul',

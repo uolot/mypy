@@ -79,13 +79,14 @@ class Attribute:
 
             # Get the type of the converter.
             converter_type = None
-            if converter and isinstance(converter.node, TypeInfo):
-                from mypy.checkmember import type_object_type  # To avoid import cycle.
-                converter_type = type_object_type(converter.node, ctx.api.builtin_type)
-            elif converter and isinstance(converter.node, OverloadedFuncDef):
-                converter_type = converter.node.type
-            elif converter and converter.type:
-                converter_type = converter.type
+            if converter:
+                if isinstance(converter.node, TypeInfo):
+                    from mypy.checkmember import type_object_type  # To avoid import cycle.
+                    converter_type = type_object_type(converter.node, ctx.api.builtin_type)
+                elif isinstance(converter.node, OverloadedFuncDef):
+                    converter_type = converter.node.type
+                elif converter.type:
+                    converter_type = converter.type
 
             init_type = None
             if isinstance(converter_type, CallableType) and converter_type.arg_types:
@@ -97,7 +98,7 @@ class Attribute:
                     num_arg_types = len(item.arg_types)
                     if not num_arg_types:
                         continue
-                    if num_arg_types > 1 and any(kind == ARG_POS for kind in item.arg_kinds[1:]):
+                    if num_arg_types > 1 and ARG_POS in item.arg_kinds[1:]:
                         continue
                     types.append(item.arg_types[0])
                 # Make a union of all the valid types.
@@ -403,33 +404,33 @@ def _parse_converter(ctx: 'mypy.plugin.ClassDefContext',
                      converter: Optional[Expression]) -> Converter:
     """Return the Converter object from an Expression."""
     # TODO: Support complex converters, e.g. lambdas, calls, etc.
-    if converter:
-        if isinstance(converter, RefExpr) and converter.node:
-            if (isinstance(converter.node, FuncBase)
-                    and converter.node.type
-                    and isinstance(converter.node.type, FunctionLike)):
-                return Converter(converter.node.fullname())
-            elif isinstance(converter.node, TypeInfo):
-                return Converter(converter.node.fullname())
+    if not converter:
+        return Converter(None)
+    if isinstance(converter, RefExpr) and converter.node:
+        if (isinstance(converter.node, FuncBase)
+                and converter.node.type
+                and isinstance(converter.node.type, FunctionLike)):
+            return Converter(converter.node.fullname())
+        elif isinstance(converter.node, TypeInfo):
+            return Converter(converter.node.fullname())
 
-        if (isinstance(converter, CallExpr)
-                and isinstance(converter.callee, RefExpr)
-                and converter.callee.fullname == "attr.converters.optional"
-                and converter.args
-                and converter.args[0]):
-            # Special handling for attr.converters.optional(type)
-            # We extract the type and add make the init_args Optional in Attribute.argument
-            argument = _parse_converter(ctx, converter.args[0])
-            argument.is_attr_converters_optional = True
-            return argument
+    if (isinstance(converter, CallExpr)
+            and isinstance(converter.callee, RefExpr)
+            and converter.callee.fullname == "attr.converters.optional"
+            and converter.args
+            and converter.args[0]):
+        # Special handling for attr.converters.optional(type)
+        # We extract the type and add make the init_args Optional in Attribute.argument
+        argument = _parse_converter(ctx, converter.args[0])
+        argument.is_attr_converters_optional = True
+        return argument
 
-        # Signal that we have an unsupported converter.
-        ctx.api.fail(
-            "Unsupported converter, only named functions and types are currently supported",
-            converter
-        )
-        return Converter('')
-    return Converter(None)
+    # Signal that we have an unsupported converter.
+    ctx.api.fail(
+        "Unsupported converter, only named functions and types are currently supported",
+        converter
+    )
+    return Converter('')
 
 
 def _parse_assignments(

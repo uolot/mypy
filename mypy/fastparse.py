@@ -446,9 +446,9 @@ class ASTConverter:
     def set_type_optional(self, type: Optional[Type], initializer: Optional[Expression]) -> None:
         if self.options.no_implicit_optional:
             return
-        # Indicate that type should be wrapped in an Optional if arg is initialized to None.
-        optional = isinstance(initializer, NameExpr) and initializer.name == 'None'
         if isinstance(type, UnboundType):
+            # Indicate that type should be wrapped in an Optional if arg is initialized to None.
+            optional = isinstance(initializer, NameExpr) and initializer.name == 'None'
             type.optional = optional
 
     def transform_args(self,
@@ -496,14 +496,12 @@ class ASTConverter:
 
     def make_argument(self, arg: ast3.arg, default: Optional[ast3.expr], kind: int,
                       no_type_check: bool) -> Argument:
-        if no_type_check:
-            arg_type = None
-        else:
+        arg_type = None
+        if not no_type_check:
             annotation = arg.annotation
             type_comment = arg.type_comment
             if annotation is not None and type_comment is not None:
                 self.fail(messages.DUPLICATE_TYPE_SIGNATURES, arg.lineno, arg.col_offset)
-            arg_type = None
             if annotation is not None:
                 arg_type = TypeConverter(self.errors, line=arg.lineno).visit(annotation)
             elif type_comment is not None:

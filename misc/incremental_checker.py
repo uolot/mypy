@@ -139,10 +139,7 @@ def run_mypy(target_file_path: Optional[str],
     if daemon:
         command = DAEMON_CMD + ["check", "-v"]
     else:
-        if mypy_script is None:
-            command = ["python3", "-m", "mypy"]
-        else:
-            command = [mypy_script]
+        command = ["python3", "-m", "mypy"] if mypy_script is None else [mypy_script]
         command.extend(["--cache-dir", mypy_cache_path])
         if incremental:
             command.append("--incremental")

@@ -280,10 +280,7 @@ class SubtypeVisitor(TypeVisitor[bool]):
                   is_named_instance(right, 'typing.Container') or
                   is_named_instance(right, 'typing.Sequence') or
                   is_named_instance(right, 'typing.Reversible')):
-                if right.args:
-                    iter_type = right.args[0]
-                else:
-                    iter_type = AnyType(TypeOfAny.special_form)
+                iter_type = right.args[0] if right.args else AnyType(TypeOfAny.special_form)
                 return all(self._is_subtype(li, iter_type) for li in left.items)
             elif self._is_subtype(left.fallback, right):
                 return True
@@ -527,10 +524,7 @@ def find_member(name: str, itype: Instance, subtype: Type) -> Optional[Type]:
     else:
         # don't have such method, maybe variable or decorator?
         node = info.get(name)
-        if not node:
-            v = None
-        else:
-            v = node.node
+        v = None if not node else node.node
         if isinstance(v, Decorator):
             v = v.var
         if isinstance(v, Var):
@@ -579,9 +573,10 @@ def get_member_flags(name: str, info: TypeInfo) -> Set[int]:
             return {IS_SETTABLE}
         return set()
     v = node.node
-    if isinstance(v, Decorator):
-        if v.var.is_staticmethod or v.var.is_classmethod:
-            return {IS_CLASS_OR_STATIC}
+    if isinstance(v, Decorator) and (
+        v.var.is_staticmethod or v.var.is_classmethod
+    ):
+        return {IS_CLASS_OR_STATIC}
     # just a variable
     if isinstance(v, Var) and not v.is_property:
         flags = {IS_SETTABLE}
@@ -1024,8 +1019,11 @@ def is_proper_subtype(left: Type, right: Type, *, ignore_promotions: bool = Fals
     Any types. Every usable type is a proper subtype of itself.
     """
     if isinstance(right, UnionType) and not isinstance(left, UnionType):
-        return any([is_proper_subtype(left, item, ignore_promotions=ignore_promotions)
-                    for item in right.items])
+        return any(
+            is_proper_subtype(left, item, ignore_promotions=ignore_promotions)
+            for item in right.items
+        )
+
     return left.accept(ProperSubtypeVisitor(right, ignore_promotions=ignore_promotions))
 
 
@@ -1162,10 +1160,7 @@ class ProperSubtypeVisitor(TypeVisitor[bool]):
             for name, typ in left.items.items():
                 if name in right.items and not is_same_type(typ, right.items[name]):
                     return False
-            for name, typ in right.items.items():
-                if name not in left.items:
-                    return False
-            return True
+            return all(name in left.items for name, typ in right.items.items())
         return self._is_proper_subtype(left.fallback, right)
 
     def visit_overloaded(self, left: Overloaded) -> bool:
@@ -1173,7 +1168,7 @@ class ProperSubtypeVisitor(TypeVisitor[bool]):
         return False
 
     def visit_union_type(self, left: UnionType) -> bool:
-        return all([self._is_proper_subtype(item, self.right) for item in left.items])
+        return all(self._is_proper_subtype(item, self.right) for item in left.items)
 
     def visit_partial_type(self, left: PartialType) -> bool:
         # TODO: What's the right thing to do here?

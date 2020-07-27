@@ -555,7 +555,12 @@ def analyze_class_attribute_access(itype: Instance,
     if is_lvalue and not chk.get_final_context():
         check_final_member(name, itype.type, msg, context)
 
-    if itype.type.is_enum and not (is_lvalue or is_decorated or is_method):
+    if (
+        itype.type.is_enum
+        and not is_lvalue
+        and not is_decorated
+        and not is_method
+    ):
         return itype
 
     t = node.type
@@ -845,9 +850,8 @@ def bind_self(method: F, original_type: Optional[Type] = None, is_classmethod: b
 def erase_to_bound(t: Type) -> Type:
     if isinstance(t, TypeVarType):
         return t.upper_bound
-    if isinstance(t, TypeType):
-        if isinstance(t.item, TypeVarType):
-            return TypeType.make_normalized(t.item.upper_bound)
+    if isinstance(t, TypeType) and isinstance(t.item, TypeVarType):
+        return TypeType.make_normalized(t.item.upper_bound)
     return t
 
 

@@ -49,10 +49,7 @@ def expr_to_unanalyzed_type(expr: Expression, _parent: Optional[Expression] = No
         if isinstance(base, UnboundType):
             if base.args:
                 raise TypeTranslationError()
-            if isinstance(expr.index, TupleExpr):
-                args = expr.index.items
-            else:
-                args = [expr.index]
+            args = expr.index.items if isinstance(expr.index, TupleExpr) else [expr.index]
             base.args = [expr_to_unanalyzed_type(arg, expr) for arg in args]
             if not base.args:
                 base.empty_tuple_index = True

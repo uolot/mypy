@@ -204,7 +204,7 @@ class FineGrainedBuildManager:
         Returns:
             A list of errors.
         """
-        changed_modules = changed_modules + removed_modules
+        changed_modules += removed_modules
         removed_set = {module for module, _ in removed_modules}
         self.changed_modules = changed_modules
 
@@ -255,11 +255,11 @@ class FineGrainedBuildManager:
                     self.manager, self.graph, self.deps, set(), {next_id},
                     self.previous_targets_with_errors)
                 changed_modules = dedupe_modules(changed_modules)
-                if not changed_modules:
-                    # Preserve state needed for the next update.
-                    self.previous_targets_with_errors = self.manager.errors.targets()
-                    messages = self.manager.errors.new_messages()
-                    break
+            if not changed_modules:
+                # Preserve state needed for the next update.
+                self.previous_targets_with_errors = self.manager.errors.targets()
+                messages = self.manager.errors.new_messages()
+                break
 
         self.previous_messages = messages[:]
         return messages
@@ -630,11 +630,11 @@ def get_module_to_path_map(graph: Graph) -> Dict[str, str]:
 def get_sources(fscache: FileSystemCache,
                 modules: Dict[str, str],
                 changed_modules: List[Tuple[str, str]]) -> List[BuildSource]:
-    sources = []
-    for id, path in changed_modules:
-        if fscache.isfile(path):
-            sources.append(BuildSource(path, id, None))
-    return sources
+    return [
+        BuildSource(path, id, None)
+        for id, path in changed_modules
+        if fscache.isfile(path)
+    ]
 
 
 def collect_dependencies(new_modules: Iterable[str],
@@ -708,9 +708,8 @@ def replace_modules_with_new_variants(
     will be dangling references that will be handled by
     propagate_changes_using_dependencies).
     """
-    for id in new_modules:
+    for id, new_module in new_modules.items():
         preserved_module = old_modules.get(id)
-        new_module = new_modules[id]
         if preserved_module and new_module is not None:
             merge_asts(preserved_module, preserved_module.names,
                        new_module, new_module.names)
@@ -950,8 +949,7 @@ def find_symbol_tables_recursive(prefix: str, symbols: SymbolTable) -> Dict[str,
 
     Returns a dictionary from full name to corresponding symbol table.
     """
-    result = {}
-    result[prefix] = symbols
+    result = {prefix: symbols}
     for name, node in symbols.items():
         if isinstance(node.node, TypeInfo) and node.node.fullname().startswith(prefix + '.'):
             more = find_symbol_tables_recursive(prefix + '.' + name, node.node.names)
